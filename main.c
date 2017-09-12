@@ -2,7 +2,7 @@
 #include "lib/thpool.h"
 #include <sys/types.h>
 #include <unistd.h>
-#include <pthread/pthread.h>
+#include <pthread.h>
 #include <stdlib.h>
 #include <sys/time.h>
 
@@ -18,20 +18,11 @@ long long current_timestamp();
 
 int io_operation(struct ioparam *iop);
 
-void thread_identify(){
-    printf("Thread #%u working\n", (int)pthread_self());
-}
-
 int main() {
 
     struct ioparam *iop = malloc(sizeof(struct ioparam));
-    iop->mbyte = 1000;
-    iop->nr_times = 10;
-
-
-    //thpool_add_work(tpool,(void*)io_operation,(void*)iop);
-    //thpool_wait(tpool);
-
+    iop->mbyte = 2;
+    iop->nr_times = 100;
 
 
     char *schedulers[3] = {"cfq","noop","deadline"};
@@ -39,27 +30,25 @@ int main() {
     char sched_type[256];
     pid_t pidArr[NR_PROC];
     for(int k = 0; k<3; k++){
-        sprintf(sched_type,"echo %s > /dev/block/sda/queue/scheduler",schedulers[k]);
+        sprintf(sched_type,"echo %s > /sys/block/sda/queue/scheduler",schedulers[k]);
         int ret = system(sched_type);
-        system("cat /dev/block/sda/queue/scheduler");
+        system("cat /sys/block/sda/queue/scheduler");
 
         for(int i=0; i < NR_PROC; i++){
             if ((pidArr[i] = fork()) < 0){
                 perror("Could not fork");
                 exit(1);
             } else if (pidArr[i]==0){
-                threadpool tpool;
-                tpool = thpool_init(2);
+        	io_operation(iop);
                 printf("I am a child.\n");
-                //thpool_add_work(tpool,(void*)io_operation,(void*)iop);
-                //thpool_wait(tpool);
                 return 0;
             } else {
                 printf("I am a parent.\n");
-                threadpool tpool;
-                tpool = thpool_init(2);
-                thpool_add_work(tpool,(void*)io_operation,(void*)iop);
-                thpool_wait(tpool);
+		io_operation(iop);
+                //threadpool tpool;
+                //tpool = thpool_init(2);
+                //thpool_add_work(tpool,(void*)io_operation,(void*)iop);
+                //thpool_wait(tpool);
             }
         }
     }
@@ -77,13 +66,13 @@ int main() {
 
 int io_operation(struct ioparam *iop){
     char cmd_string[1024];
-    sprintf(cmd_string, "dd if=/dev/zero of=/dev/null count=%d bs=%d", iop->nr_times, (iop->mbyte*1024000));
+    sprintf(cmd_string, "dd if=/dev/zero of=trashfile count=%d bs=%d status=none", iop->nr_times, (iop->mbyte*1024000));
 
     long t1 = current_timestamp();
     int ret = system(cmd_string);
     long t2 = current_timestamp();
 
-    printf("Time: %li sec for %u\n",((t2-t1)/1000),(int)pthread_self());
+    printf("Time: %f sec for %u\n",((float)(t2-t1)/1000),(int)pthread_self());
     return ret;
 }
 
