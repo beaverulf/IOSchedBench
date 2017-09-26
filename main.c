@@ -19,7 +19,7 @@ int sequential_ops(threadpool tpool,struct ioparam *iop);
 
 long long current_timestamp();
 
-float io_operation(struct ioparam *iop);
+int io_operation(struct ioparam *iop);
 
 int main(int argc, char *argv[]) {
 
@@ -38,8 +38,14 @@ int main(int argc, char *argv[]) {
 		system("cat /sys/block/sda/queue/scheduler >> data/results.txt");
 		
 		//Read/Write 1MB 200 times  
+		system("echo \"Operation: 200*1MB\" >> data/results.txt");
 		iop->mbyte = 1;
-		iop->nr_times = 200;
+		iop->nr_times = 300;
+		sequential_ops(tpool,iop);
+		
+		system("echo \"Operation: 10*50MB\" >> data/results.txt ");
+		iop->mbyte = 50;
+		iop->nr_times = 10;
 		sequential_ops(tpool,iop);
 
 	}
@@ -47,7 +53,7 @@ int main(int argc, char *argv[]) {
 	return 0;
 }
 
-float io_operation(struct ioparam *iop){
+int io_operation(struct ioparam *iop){
 	char cmd_string[1024];
 	sprintf(cmd_string, "dd if=%s of=%s count=%d bs=%d status=none; echo \"\">trashfile.trash",iop->input_file, iop->output_file ,iop->nr_times, (iop->mbyte*1024000));
 
@@ -57,7 +63,7 @@ float io_operation(struct ioparam *iop){
 	char result[128];
 	sprintf(result,"echo \"%0.3f %d \">>data/results.txt",((float)(t2-t1)/1000),iop->mbyte*iop->nr_times/*,(int)pthread_self()*/);
 	system(result);
-	return ((float)(t2-t1)/1000);
+	return ret;
 }
 
 int sequential_ops(threadpool tpool,struct ioparam *iop){
