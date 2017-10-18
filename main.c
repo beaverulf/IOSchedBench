@@ -32,27 +32,29 @@ int main(int argc, char *argv[]) {
 	char *schedulers[3] = {"cfq","noop","deadline"};
 
 	char sched_type[256];
+	
+	//Runs the same tests on the 3 different schedulers.
 	for(int k = 0; k<3; k++){
 		sprintf(sched_type,"echo %s > /sys/block/sda/queue/scheduler",schedulers[k]);
 		int ret = system(sched_type);
 		system("cat /sys/block/sda/queue/scheduler >> data/results.txt");
 		
-		//Read/Write 1MB 200 times  
+		//Read/Write 2MB 300 times  
 		system("echo \"Operation: 200*1MB\" >> data/results.txt");
-		iop->mbyte = 1;
+		iop->mbyte = 2;
 		iop->nr_times = 300;
 		sequential_ops(tpool,iop);
-		
-		system("echo \"Operation: 10*50MB\" >> data/results.txt ");
-		iop->mbyte = 50;
-		iop->nr_times = 10;
-		sequential_ops(tpool,iop);
-
 	}
 
 	return 0;
 }
 
+/*
+Function for executing and logging an I/O operation.
+
+Param:
+ -struct ioparam *iop - A struct containing the operation parameters for the I/O request.
+*/
 int io_operation(struct ioparam *iop){
 	char cmd_string[1024];
 	sprintf(cmd_string, "dd if=%s of=%s count=%d bs=%d status=none; echo \"\">trashfile.trash",iop->input_file, iop->output_file ,iop->nr_times, (iop->mbyte*1024000));
@@ -66,6 +68,13 @@ int io_operation(struct ioparam *iop){
 	return ret;
 }
 
+/*
+Adding work to the thread pool work queue.
+
+Params:
+ - threadpool tpool - the threadpool for which to add the workload
+ - struct ioparam *iop - A struct containing the operation parameters for the I/O request.
+*/
 int sequential_ops(threadpool tpool,struct ioparam *iop){
 	for(int i=0; i < 100; i++){
 		thpool_add_work(tpool,(void*)io_operation,(void*)iop);
@@ -74,13 +83,13 @@ int sequential_ops(threadpool tpool,struct ioparam *iop){
 	return 0;
 }
 
-
-
+/*
+Function for getting the current timestamp.
+*/
 long long current_timestamp() {
 	struct timeval te;
 	gettimeofday(&te, NULL);
 	long long milliseconds = te.tv_sec*1000LL + te.tv_usec/1000;
-	// printf("milliseconds: %lld\n", milliseconds);
 	return milliseconds;
 }
 
