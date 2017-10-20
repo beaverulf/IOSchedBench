@@ -6,8 +6,6 @@
 #include <stdlib.h>
 #include <sys/time.h>
 
-#define NR_PROC 2
-
 typedef struct ioparam{
 	int op;
 	int mbyte;
